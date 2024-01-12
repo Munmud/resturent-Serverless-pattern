@@ -165,29 +165,29 @@ Resources:
       UserPoolId: !Ref UserPool
 
 Outputs:
-  UsersTable:
-      Description: DynamoDB Users table
-      Value: !Ref UsersTable
+  # UsersTable:
+  #     Description: DynamoDB Users table
+  #     Value: !Ref UsersTable
 
-  UsersFunction:
-    Description: "Lambda function used to perform actions on the users data"
-    Value: !Ref UsersFunction
+  # UsersFunction:
+  #   Description: "Lambda function used to perform actions on the users data"
+  #   Value: !Ref UsersFunction
 
   APIEndpoint:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod"
 
-  UserPool:
-    Description: Cognito User Pool ID
-    Value: !Ref UserPool
+  # UserPool:
+  #   Description: Cognito User Pool ID
+  #   Value: !Ref UserPool
 
-  UserPoolClient:
-    Description: Cognito User Pool Application Client ID
-    Value: !Ref UserPoolClient
+  # UserPoolClient:
+  #   Description: Cognito User Pool Application Client ID
+  #   Value: !Ref UserPoolClient
 
-  UserPoolAdminGroupName:
-    Description: User Pool group name for API administrators
-    Value: !Ref UserPoolAdminGroupName
+  # UserPoolAdminGroupName:
+  #   Description: User Pool group name for API administrators
+  #   Value: !Ref UserPoolAdminGroupName
   
   CognitoLoginURL:
     Description: Cognito User Pool Application Client Hosted Login UI URL
