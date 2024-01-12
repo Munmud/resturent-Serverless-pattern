@@ -102,6 +102,14 @@ Resources:
             Identity:
               Headers:
                 - Authorization
+      AccessLogSetting:
+        DestinationArn: !GetAtt AccessLogs.Arn
+        Format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "integrationStatus": $context.integrationStatus, "integrationLatency": $context.integrationLatency, "responseLength":"$context.responseLength" }'
+      MethodSettings:
+        - ResourcePath: "/*"
+          LoggingLevel: INFO
+          HttpMethod: "*"
+          DataTraceEnabled: True                
 
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -164,30 +172,57 @@ Resources:
       Precedence: 0
       UserPoolId: !Ref UserPool
 
-Outputs:
-  # UsersTable:
-  #     Description: DynamoDB Users table
-  #     Value: !Ref UsersTable
+  ApiLoggingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
 
-  # UsersFunction:
-  #   Description: "Lambda function used to perform actions on the users data"
-  #   Value: !Ref UsersFunction
+  ApiGatewayAccountLoggingSettings:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiLoggingRole.Arn
+
+  AccessLogs:
+    Type: AWS::Logs::LogGroup
+    DependsOn: ApiLoggingRole
+    Properties:
+      RetentionInDays: 30
+      LogGroupName: !Sub "/${AWS::StackName}/APIAccessLogs"
+
+Outputs:
+  UsersTable:
+      Description: DynamoDB Users table
+      Value: !Ref UsersTable
+
+  UsersFunction:
+    Description: "Lambda function used to perform actions on the users data"
+    Value: !Ref UsersFunction
 
   APIEndpoint:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/Prod"
 
-  # UserPool:
-  #   Description: Cognito User Pool ID
-  #   Value: !Ref UserPool
+  UserPool:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
 
-  # UserPoolClient:
-  #   Description: Cognito User Pool Application Client ID
-  #   Value: !Ref UserPoolClient
+  UserPoolClient:
+    Description: Cognito User Pool Application Client ID
+    Value: !Ref UserPoolClient
 
-  # UserPoolAdminGroupName:
-  #   Description: User Pool group name for API administrators
-  #   Value: !Ref UserPoolAdminGroupName
+  UserPoolAdminGroupName:
+    Description: User Pool group name for API administrators
+    Value: !Ref UserPoolAdminGroupName
   
   CognitoLoginURL:
     Description: Cognito User Pool Application Client Hosted Login UI URL
