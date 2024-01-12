@@ -17,6 +17,10 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
+s3_prefix = "moontasirorders"
+region = "ap-south-1"
+parameter_overrides = "UserPool=\"ap-south-1_sZBBuWRwm\""
+image_repositories = []
 
 [default.package.parameters]
 resolve_s3 = true
