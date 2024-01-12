@@ -288,8 +288,8 @@ Resources:
 
 Outputs:
   UsersTable:
-      Description: DynamoDB Users table
-      Value: !Ref UsersTable
+    Description: DynamoDB Users table
+    Value: !Ref UsersTable
 
   UsersFunction:
     Description: "Lambda function used to perform actions on the users data"
