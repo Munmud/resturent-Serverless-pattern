@@ -1,72 +1,154 @@
 import json
-
+import os
+import boto3
+import uuid
 import pytest
+from moto import mock_dynamodb
+from contextlib import contextmanager
+from unittest.mock import patch
 
-from hello_world import app
+USERS_MOCK_TABLE_NAME = 'Users'
+UUID_MOCK_VALUE_JOHN = 'f8216640-91a2-11eb-8ab9-57aa454facef'
+UUID_MOCK_VALUE_JANE = '31a9f940-917b-11eb-9054-67837e2c40b0'
+UUID_MOCK_VALUE_NEW_USER = 'new-user-guid'
 
 
-@pytest.fixture()
-def apigw_event():
-    """ Generates API GW Event"""
+def mock_uuid():
+    return UUID_MOCK_VALUE_NEW_USER
 
-    return {
-        "body": '{ "test": "body"}',
-        "resource": "/{proxy+}",
-        "requestContext": {
-            "resourceId": "123456",
-            "apiId": "1234567890",
-            "resourcePath": "/{proxy+}",
-            "httpMethod": "POST",
-            "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
-            "accountId": "123456789012",
-            "identity": {
-                "apiKey": "",
-                "userArn": "",
-                "cognitoAuthenticationType": "",
-                "caller": "",
-                "userAgent": "Custom User Agent String",
-                "user": "",
-                "cognitoIdentityPoolId": "",
-                "cognitoIdentityId": "",
-                "cognitoAuthenticationProvider": "",
-                "sourceIp": "127.0.0.1",
-                "accountId": "",
+
+@contextmanager
+def my_test_environment():
+    with mock_dynamodb():
+        set_up_dynamodb()
+        put_data_dynamodb()
+        yield
+
+def set_up_dynamodb():
+    conn = boto3.client(
+        'dynamodb'
+    )
+    conn.create_table(
+        TableName=USERS_MOCK_TABLE_NAME,
+        KeySchema=[
+            {'AttributeName': 'userid', 'KeyType': 'HASH'},
+        ],
+        AttributeDefinitions=[
+            {'AttributeName': 'userid', 'AttributeType': 'S'}
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 1,
+            'WriteCapacityUnits': 1
+        }
+    )
+
+def put_data_dynamodb():
+    conn = boto3.client(
+        'dynamodb'
+    )
+    conn.put_item(
+        TableName=USERS_MOCK_TABLE_NAME,
+        Item={
+            'userid': {'S': UUID_MOCK_VALUE_JOHN},
+            'name': {'S': 'John Doe'},
+            'timestamp': {'S': '2021-03-30T21:57:49.860Z'}
+        }
+    )
+    conn.put_item(
+        TableName=USERS_MOCK_TABLE_NAME,
+        Item={
+            'userid': {'S': UUID_MOCK_VALUE_JANE},
+            'name': {'S': 'Jane Doe'},
+            'timestamp': {'S': '2021-03-30T17:13:06.516Z'}
+        }
+    )
+
+@patch.dict(os.environ, {'USERS_TABLE': USERS_MOCK_TABLE_NAME, 'AWS_XRAY_CONTEXT_MISSING': 'LOG_ERROR'})
+def test_get_list_of_users():
+    with my_test_environment():
+        from src.api import users
+        with open('./events/event-get-all-users.json', 'r') as f:
+            apigw_get_all_users_event = json.load(f)
+        expected_response = [
+            {
+                'userid': UUID_MOCK_VALUE_JOHN,
+                'name': 'John Doe',
+                'timestamp': '2021-03-30T21:57:49.860Z'
             },
-            "stage": "prod",
-        },
-        "queryStringParameters": {"foo": "bar"},
-        "headers": {
-            "Via": "1.1 08f323deadbeefa7af34d5feb414ce27.cloudfront.net (CloudFront)",
-            "Accept-Language": "en-US,en;q=0.8",
-            "CloudFront-Is-Desktop-Viewer": "true",
-            "CloudFront-Is-SmartTV-Viewer": "false",
-            "CloudFront-Is-Mobile-Viewer": "false",
-            "X-Forwarded-For": "127.0.0.1, 127.0.0.2",
-            "CloudFront-Viewer-Country": "US",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Upgrade-Insecure-Requests": "1",
-            "X-Forwarded-Port": "443",
-            "Host": "1234567890.execute-api.us-east-1.amazonaws.com",
-            "X-Forwarded-Proto": "https",
-            "X-Amz-Cf-Id": "aaaaaaaaaae3VYQb9jd-nvCd-de396Uhbp027Y2JvkCPNLmGJHqlaA==",
-            "CloudFront-Is-Tablet-Viewer": "false",
-            "Cache-Control": "max-age=0",
-            "User-Agent": "Custom User Agent String",
-            "CloudFront-Forwarded-Proto": "https",
-            "Accept-Encoding": "gzip, deflate, sdch",
-        },
-        "pathParameters": {"proxy": "/examplepath"},
-        "httpMethod": "POST",
-        "stageVariables": {"baz": "qux"},
-        "path": "/examplepath",
-    }
+            {
+                'userid': UUID_MOCK_VALUE_JANE,
+                'name': 'Jane Doe',
+                'timestamp': '2021-03-30T17:13:06.516Z'
+            }
+        ]
+        ret = users.lambda_handler(apigw_get_all_users_event, '')
+        assert ret['statusCode'] == 200
+        data = json.loads(ret['body'])
+        assert data == expected_response
 
+def test_get_single_user():
+    with my_test_environment():
+        from src.api import users
+        with open('./events/event-get-user-by-id.json', 'r') as f:
+            apigw_event = json.load(f)
+        expected_response = {
+            'userid': UUID_MOCK_VALUE_JOHN,
+            'name': 'John Doe',
+            'timestamp': '2021-03-30T21:57:49.860Z'
+        }
+        ret = users.lambda_handler(apigw_event, '')
+        assert ret['statusCode'] == 200
+        data = json.loads(ret['body'])
+        assert data == expected_response
 
-def test_lambda_handler(apigw_event):
+def test_get_single_user_wrong_id():
+    with my_test_environment():
+        from src.api import users
+        with open('./events/event-get-user-by-id.json', 'r') as f:
+            apigw_event = json.load(f)
+            apigw_event['pathParameters']['userid'] = '123456789'
+            apigw_event['rawPath'] = '/users/123456789'
+        ret = users.lambda_handler(apigw_event, '')
+        assert ret['statusCode'] == 200
+        assert json.loads(ret['body']) == {}
 
-    ret = app.lambda_handler(apigw_event, "")
-    data = json.loads(ret["body"])
+@patch('uuid.uuid1', mock_uuid)
+@pytest.mark.freeze_time('2001-01-01')
+def test_add_user():
+    with my_test_environment():
+        from src.api import users
+        with open('./events/event-post-user.json', 'r') as f:
+            apigw_event = json.load(f)
+        expected_response = json.loads(apigw_event['body'])
+        ret = users.lambda_handler(apigw_event, '')
+        assert ret['statusCode'] == 200
+        data = json.loads(ret['body'])
+        assert data['userid'] == UUID_MOCK_VALUE_NEW_USER
+        assert data['timestamp'] == '2001-01-01T00:00:00'
+        assert data['name'] == expected_response['name']
 
-    assert ret["statusCode"] == 200
-    assert "message" in ret["body"]
-    assert data["message"] == "hello world"
+@pytest.mark.freeze_time('2001-01-01')
+def test_add_user_with_id():
+    with my_test_environment():
+        from src.api import users
+        with open('./events/event-post-user.json', 'r') as f:
+            apigw_event = json.load(f)
+        expected_response = json.loads(apigw_event['body'])
+        apigw_event['body'] = apigw_event['body'].replace('}', ', \"userid\":\"123456789\"}')
+        ret = users.lambda_handler(apigw_event, '')
+        assert ret['statusCode'] == 200
+        data = json.loads(ret['body'])
+        assert data['userid'] == '123456789'
+        assert data['timestamp'] == '2001-01-01T00:00:00'
+        assert data['name'] == expected_response['name']
+
+def test_delete_user():
+    with my_test_environment():
+        from src.api import users
+        with open('./events/event-delete-user-by-id.json', 'r') as f:
+            apigw_event = json.load(f)
+        ret = users.lambda_handler(apigw_event, '')
+        assert ret['statusCode'] == 200
+        assert json.loads(ret['body']) == {}
+# Add your unit testing code here
+
