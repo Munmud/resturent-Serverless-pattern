@@ -31,8 +31,7 @@ Resources:
   UsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: user_process/
-      Handler: users.lambda_handler
+      Handler: src/api/users.lambda_handler
       Description: Handler for all users related operations
       Environment:
         Variables:
@@ -74,6 +73,19 @@ Resources:
             Method: delete
             RestApiId: !Ref RestAPI
 
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/api/authorizer.lambda_handler
+      Description: Handler for Lambda authorizer
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          APPLICATION_CLIENT_ID: !Ref UserPoolClient
+          ADMIN_GROUP_NAME: !Ref UserPoolAdminGroupName
+      Tags:
+        Stack: !Sub "${AWS::StackName}"
+
   RestAPI:
     Type: AWS::Serverless::Api
     Properties:
@@ -82,6 +94,14 @@ Resources:
       Tags:
         Name: !Sub "${AWS::StackName}-API"
         Stack: !Sub "${AWS::StackName}"      
+      Auth:
+        DefaultAuthorizer: LambdaTokenAuthorizer
+        Authorizers:
+          LambdaTokenAuthorizer:
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
+            Identity:
+              Headers:
+                - Authorization
 
   UserPool:
     Type: AWS::Cognito::UserPool

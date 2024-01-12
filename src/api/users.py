@@ -10,6 +10,8 @@ userTable = dynamodb.Table(USERS_TABLE)
 
 
 def lambda_handler(event, context):
+    print("--------Users event")
+    print(event)
     route_key = f"{event['httpMethod']} {event['resource']}"
     response_body = {'Message': 'Unsupported route'}
     status_code = 400
