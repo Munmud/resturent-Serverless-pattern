@@ -82,6 +82,26 @@ Resources:
             Method: get
             RestApiId: !Ref WorkshopApiGateway
 
+  ListOrdersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/api/list_orders.lambda_handler
+      Runtime: python3.11
+      Tracing: Active
+      Policies:
+        DynamoDBReadPolicy:
+          TableName: !Ref OrdersTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: get
+            RestApiId: !Ref WorkshopApiGateway
+
   PyUtils:
     Type: AWS::Serverless::LayerVersion
     Properties:
