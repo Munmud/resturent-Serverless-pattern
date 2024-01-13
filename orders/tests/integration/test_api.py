@@ -85,3 +85,43 @@ def test_list_orders(global_config, orders_endpoint, user_token):
   assert orders['orders'][0]['totalAmount'] == 19.97
   assert orders['orders'][0]['restaurantId'] == 1
   assert len(orders['orders'][0]['orderItems']) == 2  
+
+def test_edit_order(global_config, orders_endpoint, user_token):
+  print(f"Modifying order {global_config['orderId']}")
+
+  modifiedOrder = {
+    "restaurantId": 1,
+    "orderItems": [
+        {
+            "id": 1,
+            "name": "Spaghetti",
+            "price": 9.99,
+            "quantity": 1
+        },
+        {
+            "id": 2,
+            "name": "Pizza - SMALL",
+            "price": 4.99,
+            "quantity": 1
+        },
+        {
+            "id": 3,
+            "name": "Salad - LARGE",
+            "price": 9.99,
+            "quantity": 1
+        },
+      ],
+      "totalAmount": 25.97
+  }
+
+  response = requests.put(
+      orders_endpoint + "/" + global_config['orderId'],
+      data=json.dumps(modifiedOrder),
+      headers={'Authorization': user_token, 'Content-Type': 'application/json'}
+      )
+
+  logger.debug(f'Modify order response: {response.text}')
+  assert response.status_code == 200
+  updatedOrder = response.json()
+  assert updatedOrder['totalAmount'] == 25.97
+  assert len(updatedOrder['orderItems']) == 3

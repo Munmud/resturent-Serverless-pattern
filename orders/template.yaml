@@ -102,6 +102,28 @@ Resources:
             Method: get
             RestApiId: !Ref WorkshopApiGateway
 
+  EditOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/api/edit_order.lambda_handler
+      Runtime: python3.11
+      Tracing: Active
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: !Ref OrdersTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+      Layers:
+        - !Ref PyUtils
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /orders/{orderId}
+            Method: put
+            RestApiId: !Ref WorkshopApiGateway
+
   PyUtils:
     Type: AWS::Serverless::LayerVersion
     Properties:
