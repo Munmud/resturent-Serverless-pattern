@@ -22,7 +22,7 @@ persistence_layer = DynamoDBPersistenceLayer(table_name=idempotency_table)
 logger = Logger()
 
 
-
+@logger.inject_lambda_context
 def add_order(event, context):
     logger.info("Adding a new order")
     detail = json.loads(event['body'])
