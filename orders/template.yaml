@@ -60,6 +60,40 @@ Resources:
             Method: post
             RestApiId: !Ref WorkshopApiGateway
 
+  GetOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/api/get_order.lambda_handler
+      Runtime: python3.11
+      Tracing: Active
+      Policies:
+        DynamoDBReadPolicy:
+          TableName: !Ref OrdersTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+      Layers:
+        - !Ref PyUtils
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /orders/{orderId}
+            Method: get
+            RestApiId: !Ref WorkshopApiGateway
+
+  PyUtils:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+        LayerName: pyutils
+        Description: Shared utilities for Orders service 
+        ContentUri: src/layers/
+        CompatibleRuntimes:
+          - python3.11
+        RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.11
+
 Outputs:
   Module3ApiEndpoint:  # Returns the API URL
     Description: "API Gateway endpoint URL"

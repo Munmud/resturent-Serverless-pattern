@@ -59,3 +59,17 @@ def test_add_new_order(global_config, orders_endpoint, user_token):
   logger.debug("New orderId: %s", orderId)
   global_config['orderId'] = orderId
   assert orderInfo['status'] == "PLACED"
+
+
+def test_get_order(global_config, orders_endpoint, user_token):
+  response = requests.get(orders_endpoint + "/" + global_config['orderId'],
+      headers={'Authorization': user_token, 'Content-Type': 'application/json'}
+      )
+
+  logger.debug(response.text)
+  orderInfo = json.loads(response.text)
+  assert orderInfo['orderId'] == global_config['orderId']
+  assert orderInfo['status'] == "PLACED"
+  assert orderInfo['totalAmount'] == 19.97
+  assert orderInfo['restaurantId'] == 1
+  assert len(orderInfo['orderItems']) == 2
