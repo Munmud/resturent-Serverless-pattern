@@ -4,13 +4,30 @@ from decimal import Decimal
 import json
 import uuid
 from datetime import datetime
+from aws_lambda_powertools.utilities.typing import LambdaContext
+from aws_lambda_powertools.utilities.idempotency import (
+    IdempotencyConfig, DynamoDBPersistenceLayer, idempotent
+)
+from aws_lambda_powertools import Logger
+
+
 
 # Globals
 orders_table = os.getenv('TABLE_NAME')
+idempotency_table = os.getenv('IDEMPOTENCY_TABLE_NAME')
 dynamodb = boto3.resource('dynamodb')
 
+persistence_layer = DynamoDBPersistenceLayer(table_name=idempotency_table)
+
+logger = Logger()
+
+
+
 def add_order(event, context):
+    logger.info("Adding a new order")
     detail = json.loads(event['body'])
+    logger.info({"operation": "add_order", "order_details": detail})
+
     restaurantId = detail['restaurantId']
     totalAmount = detail['totalAmount']
     orderItems = detail['orderItems']
@@ -38,6 +55,7 @@ def add_order(event, context):
     detail['status'] = 'PLACED'
     return detail
 
+@idempotent(persistence_store=persistence_layer)
 def lambda_handler(event, context):
     """Handles the lambda method invocation"""
     try:
