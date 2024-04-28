@@ -1,0 +1,8 @@
+requests
+datetime
+boto3
+python-jose
+pytest
+moto
+pytest-freezegun
+aws_lambda_powertools
